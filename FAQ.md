@@ -1,6 +1,6 @@
 # FAQ
 
-### Can I use ChatGPT?
+### Can I use ChatGPT/Claude or any other model ?
 Yes. But you must understand your solution.
 
 ### Do I need a database?
