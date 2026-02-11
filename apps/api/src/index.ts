@@ -116,18 +116,21 @@ export function createApp(): { app: FastifyInstance; records: Map<string, TxSecu
 const port = Number(process.env.PORT) || 3001;
 const host = process.env.HOST || "0.0.0.0";
 
-async function start() {
-  const { app } = createApp();
-  try {
-    await app.ready();
-    await app.listen({ port, host });
+// Create app instance once (shared across invocations in serverless)
+const { app } = createApp();
+
+// Export default handler for Vercel serverless
+export default async (req: any, res: any) => {
+  await app.ready();
+  app.server.emit("request", req, res);
+};
+
+// For local development: listen on port if not Vercel
+if (process.env.NODE_ENV !== "test" && !process.env.VERCEL) {
+  app.listen({ port, host }).then(() => {
     app.log.info(`API ready at http://${host}:${port}`);
-  } catch (error) {
+  }).catch((error) => {
     app.log.error(error);
     process.exit(1);
-  }
-}
-
-if (process.env.NODE_ENV !== "test") {
-  void start();
+  });
 }
