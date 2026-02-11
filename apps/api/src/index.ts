@@ -4,6 +4,11 @@ import cors from "@fastify/cors";
 import fastify, { type FastifyInstance, type FastifyReply } from "fastify";
 
 import { decryptPayload, encryptPayload, type TxSecureRecord } from "@mirfa/crypto";
+import {
+  createMongoTransactionRepository,
+  type TransactionRepository,
+} from "./repositories/transaction.repository";
+import { ensureMongoEnv } from "./lib/mongo";
 
 type ErrorResponse = { error: string };
 type EncryptBody = { partyId: string; payload: unknown };
@@ -46,9 +51,20 @@ function handleError(reply: FastifyReply, error: unknown) {
   return reply.status(500).send({ error: "Internal server error" } satisfies ErrorResponse);
 }
 
-export function createApp(): { app: FastifyInstance; records: Map<string, TxSecureRecord> } {
+type AppDeps = {
+  repository?: TransactionRepository;
+};
+
+export function createApp({ repository }: AppDeps = {}): {
+  app: FastifyInstance;
+  repository: TransactionRepository;
+} {
   const app = fastify({ logger: true });
-  const records = new Map<string, TxSecureRecord>();
+  const repo = repository ?? createMongoTransactionRepository();
+
+  if (!repository) {
+    ensureMongoEnv();
+  }
 
   void app.register(cors, { origin: true });
 
@@ -68,7 +84,7 @@ export function createApp(): { app: FastifyInstance; records: Map<string, TxSecu
     try {
       const { partyId, payload } = assertEncryptBody(request.body);
       const record = encryptPayload(partyId, payload);
-      records.set(record.id, record);
+      await repo.save(record);
       return reply.status(200).send(record);
     } catch (error) {
       return handleError(reply, error);
@@ -80,7 +96,7 @@ export function createApp(): { app: FastifyInstance; records: Map<string, TxSecu
     Reply: TxSecureRecord | ErrorResponse;
   }>("/tx/:id", async (request, reply) => {
     try {
-      const record = records.get(request.params.id);
+      const record = await repo.findById(request.params.id);
       if (!record) {
         throw new AppError(404, "Record not found");
       }
@@ -95,7 +111,7 @@ export function createApp(): { app: FastifyInstance; records: Map<string, TxSecu
     Reply: DecryptResponse | ErrorResponse;
   }>("/tx/:id/decrypt", async (request, reply) => {
     try {
-      const record = records.get(request.params.id);
+      const record = await repo.findById(request.params.id);
       if (!record) {
         throw new AppError(404, "Record not found");
       }
@@ -122,27 +138,33 @@ export function createApp(): { app: FastifyInstance; records: Map<string, TxSecu
     });
   });
 
-  return { app, records };
+  return { app, repository: repo };
 }
 
 const port = Number(process.env.PORT) || 3001;
 const host = process.env.HOST || "0.0.0.0";
+const isTest = process.env.NODE_ENV === "test";
 
-// Create app instance once (shared across invocations in serverless)
-const { app } = createApp();
+// Create app instance once (shared across invocations in serverless) unless tests
+const defaultContext = isTest ? null : createApp();
+const defaultApp = defaultContext?.app;
 
 // Export default handler for Vercel serverless
 export default async (req: any, res: any) => {
+  const app = defaultApp ?? createApp().app;
   await app.ready();
   app.server.emit("request", req, res);
 };
 
 // For local development: listen on port if not Vercel
-if (process.env.NODE_ENV !== "test" && !process.env.VERCEL) {
-  app.listen({ port, host }).then(() => {
-    app.log.info(`API ready at http://${host}:${port}`);
-  }).catch((error) => {
-    app.log.error(error);
-    process.exit(1);
-  });
+if (!isTest && !process.env.VERCEL && defaultApp) {
+  defaultApp
+    .listen({ port, host })
+    .then(() => {
+      defaultApp.log.info(`API ready at http://${host}:${port}`);
+    })
+    .catch((error) => {
+      defaultApp.log.error(error);
+      process.exit(1);
+    });
 }

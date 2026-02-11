@@ -1,11 +1,29 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import type { TxSecureRecord } from "@mirfa/crypto";
 import { createApp } from "./index";
+import type { TransactionRepository } from "./repositories/transaction.repository";
 
 const MASTER_KEY = "ab".repeat(32);
 
 beforeEach(() => {
   process.env.MASTER_KEY = MASTER_KEY;
 });
+
+class InMemoryTransactionRepository implements TransactionRepository {
+  private readonly records = new Map<string, TxSecureRecord>();
+
+  async save(record: TxSecureRecord): Promise<void> {
+    this.records.set(record.id, record);
+  }
+
+  async findById(id: string): Promise<TxSecureRecord | null> {
+    return this.records.get(id) ?? null;
+  }
+
+  set(id: string, record: TxSecureRecord): void {
+    this.records.set(id, record);
+  }
+}
 
 function flipHexChar(value: string): string {
   const first = value[0];
@@ -15,7 +33,8 @@ function flipHexChar(value: string): string {
 
 describe("API integration", () => {
   it("POST /tx/encrypt succeeds", async () => {
-    const { app } = createApp();
+    const repository = new InMemoryTransactionRepository();
+    const { app } = createApp({ repository });
     await app.ready();
 
     const res = await app.inject({
@@ -32,7 +51,8 @@ describe("API integration", () => {
   });
 
   it("GET /tx/:id returns stored record", async () => {
-    const { app } = createApp();
+    const repository = new InMemoryTransactionRepository();
+    const { app } = createApp({ repository });
     await app.ready();
 
     const created = await app.inject({
@@ -48,7 +68,8 @@ describe("API integration", () => {
   });
 
   it("POST /tx/:id/decrypt returns payload", async () => {
-    const { app } = createApp();
+    const repository = new InMemoryTransactionRepository();
+    const { app } = createApp({ repository });
     await app.ready();
 
     const created = await app.inject({
@@ -64,7 +85,8 @@ describe("API integration", () => {
   });
 
   it("GET /tx/:id returns 404 for missing id", async () => {
-    const { app } = createApp();
+    const repository = new InMemoryTransactionRepository();
+    const { app } = createApp({ repository });
     await app.ready();
 
     const res = await app.inject({ method: "GET", url: "/tx/nonexistent" });
@@ -72,7 +94,8 @@ describe("API integration", () => {
   });
 
   it("Decrypt tampered record fails", async () => {
-    const { app, records } = createApp();
+    const repository = new InMemoryTransactionRepository();
+    const { app } = createApp({ repository });
     await app.ready();
 
     const created = await app.inject({
@@ -82,14 +105,15 @@ describe("API integration", () => {
     });
     const record = created.json() as any;
 
-    records.set(record.id, { ...record, payload_ct: flipHexChar(record.payload_ct) });
+    repository.set(record.id, { ...record, payload_ct: flipHexChar(record.payload_ct) });
 
     const res = await app.inject({ method: "POST", url: `/tx/${record.id}/decrypt` });
     expect(res.statusCode).toBe(400);
   });
 
   it("Decrypt with wrong master key fails", async () => {
-    const { app } = createApp();
+    const repository = new InMemoryTransactionRepository();
+    const { app } = createApp({ repository });
     await app.ready();
 
     const created = await app.inject({

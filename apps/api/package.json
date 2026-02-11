@@ -15,6 +15,7 @@
   "dependencies": {
     "@fastify/cors": "^8.4.0",
     "@mirfa/crypto": "workspace:*",
+    "mongodb": "^6.6.2",
     "dotenv": "^16.4.7",
     "fastify": "^4.27.2"
   },
