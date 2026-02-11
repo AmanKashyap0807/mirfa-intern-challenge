@@ -66,7 +66,16 @@ export function createApp({ repository }: AppDeps = {}): {
     ensureMongoEnv();
   }
 
-  void app.register(cors, { origin: true });
+  const allowedOrigins = (process.env.ALLOWED_ORIGINS ?? "http://localhost:3000")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+  void app.register(cors, {
+    origin: allowedOrigins,
+    methods: ["GET", "POST", "OPTIONS"],
+    credentials: false,
+  });
 
   app.setErrorHandler((error, request, reply) => {
     if (error instanceof AppError) {
