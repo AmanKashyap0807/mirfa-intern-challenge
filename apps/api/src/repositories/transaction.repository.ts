@@ -1,5 +1,5 @@
 import type { TxSecureRecord } from "@mirfa/crypto";
-import { getDb } from "../lib/mongo";
+import { getDb } from "../lib/mongo.js";
 
 export type TransactionRepository = {
   save(record: TxSecureRecord): Promise<void>;

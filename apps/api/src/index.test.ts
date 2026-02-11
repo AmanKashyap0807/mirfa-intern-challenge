@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { TxSecureRecord } from "@mirfa/crypto";
-import { createApp } from "./index";
+import { createApp } from "./index.js";
 import type { TransactionRepository } from "./repositories/transaction.repository";
 
 const MASTER_KEY = "ab".repeat(32);
