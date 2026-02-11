@@ -1,3 +1,4 @@
+// generate master key for the first time for setting in env
 import { randomBytes } from "crypto";
 
 const masterKey = randomBytes(32).toString("hex");
