@@ -9,10 +9,11 @@
     "build": "tsc -p tsconfig.json",
     "dev": "tsc -w --preserveWatchOutput",
     "lint": "tsc --noEmit",
-    "test": "echo \"No tests for crypto\""
+    "test": "vitest run"
   },
   "devDependencies": {
-    "@types/node": "^20.11.0",
-    "typescript": "^5.4.5"
+    "@types/node": "^20.12.7",
+    "typescript": "^5.4.5",
+    "vitest": "^2.1.4"
   }
 }
