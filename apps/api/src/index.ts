@@ -110,6 +110,18 @@ export function createApp(): { app: FastifyInstance; records: Map<string, TxSecu
     }
   });
 
+  app.get("/", async (request, reply) => {
+    return reply.status(200).send({ 
+      status: "ok", 
+      message: "Mirfa Secure Transactions API",
+      endpoints: [
+        "POST /tx/encrypt",
+        "GET /tx/:id",
+        "POST /tx/:id/decrypt"
+      ]
+    });
+  });
+
   return { app, records };
 }
 
