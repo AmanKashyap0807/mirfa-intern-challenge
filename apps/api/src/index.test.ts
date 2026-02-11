@@ -1,0 +1,107 @@
+import { beforeEach, describe, expect, it } from "vitest";
+import { createApp } from "./index";
+
+const MASTER_KEY = "ab".repeat(32);
+
+beforeEach(() => {
+  process.env.MASTER_KEY = MASTER_KEY;
+});
+
+function flipHexChar(value: string): string {
+  const first = value[0];
+  const replacement = first === "a" ? "b" : "a";
+  return `${replacement}${value.slice(1)}`;
+}
+
+describe("API integration", () => {
+  it("POST /tx/encrypt succeeds", async () => {
+    const { app } = createApp();
+    await app.ready();
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/tx/encrypt",
+      payload: { partyId: "p1", payload: { foo: "bar" } },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = res.json() as any;
+    expect(body.id).toBeTruthy();
+    expect(body.payload_nonce).toHaveLength(24);
+    expect(body.payload_tag).toHaveLength(32);
+  });
+
+  it("GET /tx/:id returns stored record", async () => {
+    const { app } = createApp();
+    await app.ready();
+
+    const created = await app.inject({
+      method: "POST",
+      url: "/tx/encrypt",
+      payload: { partyId: "p1", payload: { foo: "bar" } },
+    });
+    const record = created.json() as any;
+
+    const res = await app.inject({ method: "GET", url: `/tx/${record.id}` });
+    expect(res.statusCode).toBe(200);
+    expect((res.json() as any).id).toBe(record.id);
+  });
+
+  it("POST /tx/:id/decrypt returns payload", async () => {
+    const { app } = createApp();
+    await app.ready();
+
+    const created = await app.inject({
+      method: "POST",
+      url: "/tx/encrypt",
+      payload: { partyId: "p1", payload: { foo: "bar" } },
+    });
+    const record = created.json() as any;
+
+    const res = await app.inject({ method: "POST", url: `/tx/${record.id}/decrypt` });
+    expect(res.statusCode).toBe(200);
+    expect((res.json() as any).payload).toEqual({ foo: "bar" });
+  });
+
+  it("GET /tx/:id returns 404 for missing id", async () => {
+    const { app } = createApp();
+    await app.ready();
+
+    const res = await app.inject({ method: "GET", url: "/tx/nonexistent" });
+    expect(res.statusCode).toBe(404);
+  });
+
+  it("Decrypt tampered record fails", async () => {
+    const { app, records } = createApp();
+    await app.ready();
+
+    const created = await app.inject({
+      method: "POST",
+      url: "/tx/encrypt",
+      payload: { partyId: "p1", payload: { foo: "bar" } },
+    });
+    const record = created.json() as any;
+
+    records.set(record.id, { ...record, payload_ct: flipHexChar(record.payload_ct) });
+
+    const res = await app.inject({ method: "POST", url: `/tx/${record.id}/decrypt` });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it("Decrypt with wrong master key fails", async () => {
+    const { app } = createApp();
+    await app.ready();
+
+    const created = await app.inject({
+      method: "POST",
+      url: "/tx/encrypt",
+      payload: { partyId: "p1", payload: { foo: "bar" } },
+    });
+    const record = created.json() as any;
+
+    process.env.MASTER_KEY = "cd".repeat(32); // wrong key
+
+    const res = await app.inject({ method: "POST", url: `/tx/${record.id}/decrypt` });
+    expect(res.statusCode).toBe(400);
+  });
+});
