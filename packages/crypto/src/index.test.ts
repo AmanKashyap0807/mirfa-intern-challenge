@@ -13,6 +13,7 @@ function flipHexChar(value: string): string {
   return `${replacement}${value.slice(1)}`;
 }
 
+// For test
 describe("envelope encryption", () => {
   it("encrypts and decrypts payloads (roundtrip)", () => {
     const payload = { hello: "world", amount: 42 };
