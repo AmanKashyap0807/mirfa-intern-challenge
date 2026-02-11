@@ -7,8 +7,8 @@ import { decryptPayload, encryptPayload, type TxSecureRecord } from "@mirfa/cryp
 import {
   createMongoTransactionRepository,
   type TransactionRepository,
-} from "./repositories/transaction.repository";
-import { ensureMongoEnv } from "./lib/mongo";
+} from "./repositories/transaction.repository.js";
+import { ensureMongoEnv } from "./lib/mongo.js";
 
 type ErrorResponse = { error: string };
 type EncryptBody = { partyId: string; payload: unknown };
