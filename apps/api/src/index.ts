@@ -55,6 +55,8 @@ type AppDeps = {
   repository?: TransactionRepository;
 };
 
+// Application factory pattern allows dependency injection for better testing
+// and clean separation of concerns.
 export function createApp({ repository }: AppDeps = {}): {
   app: FastifyInstance;
   repository: TransactionRepository;
@@ -66,6 +68,8 @@ export function createApp({ repository }: AppDeps = {}): {
     ensureMongoEnv();
   }
 
+  // CORS Configuration: In production, we restrict access deeply to prevent
+  // unauthorized domains from invoking our API from the browser.
   const allowedOrigins = (process.env.ALLOWED_ORIGINS ?? "http://localhost:3000")
     .split(",")
     .map((origin) => origin.trim())
@@ -91,6 +95,8 @@ export function createApp({ repository }: AppDeps = {}): {
     Reply: TxSecureRecord | ErrorResponse;
   }>("/tx/encrypt", async (request, reply) => {
     try {
+      // Validate input strictly before passing to any crypto functions
+      // to avoid potential denial-of-service or injection vectors.
       const { clientId, payload } = assertEncryptBody(request.body);
       const record = encryptPayload(clientId, payload);
       await repo.save(record);

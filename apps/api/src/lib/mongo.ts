@@ -12,6 +12,10 @@ declare global {
   var __mongoCache: MongoCache | undefined;
 }
 
+// Global Cache Pattern for Serverless:
+// In a serverless environment (like Vercel), the container might be reused ("warm start").
+// We attach the client to the global scope to persist the connection across invocations
+// preventing connection pool exhaustion and reducing latency.
 const globalCache: MongoCache = globalThis.__mongoCache ?? {};
 if (!globalThis.__mongoCache) {
   globalThis.__mongoCache = globalCache;

@@ -29,6 +29,7 @@ function requireMasterKey(): Buffer {
   if (!keyHex) {
     throw new Error("MASTER_KEY environment variable is required");
   }
+  // check if it's valid hex and 32 bytes (64 hex characters)
   if (!HEX_REGEX.test(keyHex) || keyHex.length !== DEK_LENGTH_BYTES * 2) {
     throw new Error("MASTER_KEY must be 32 bytes of hex (64 hex characters)");
   }
@@ -62,7 +63,7 @@ export function encryptPayload(clientId: string, payload: unknown): TxSecureReco
   const masterKey = requireMasterKey();
 
   const dek = randomBytes(DEK_LENGTH_BYTES);
-
+// Encrypt the payload with the DEK using AES-GCM
   const payloadNonce = randomBytes(NONCE_LENGTH_BYTES);
   const payloadCipher = createCipheriv(AES_ALG, dek, payloadNonce);
   const payloadPlaintext = Buffer.from(JSON.stringify(payload), "utf8");
@@ -71,7 +72,7 @@ export function encryptPayload(clientId: string, payload: unknown): TxSecureReco
     payloadCipher.final(),
   ]);
   const payloadTag = payloadCipher.getAuthTag();
-
+// Wrap the DEK with the master key 
   const wrapNonce = randomBytes(NONCE_LENGTH_BYTES);
   const wrapCipher = createCipheriv(AES_ALG, masterKey, wrapNonce);
   const wrappedDek = Buffer.concat([wrapCipher.update(dek), wrapCipher.final()]);
@@ -104,11 +105,11 @@ export function decryptPayload(record: TxSecureRecord): unknown {
   }
 
   const masterKey = requireMasterKey();
-
+// Unwrap the DEK using the master key
   const dekWrapNonce = toBuffer(record.dek_wrap_nonce, "dek_wrap_nonce");
   const dekWrapTag = toBuffer(record.dek_wrap_tag, "dek_wrap_tag");
   const dekWrapped = toBuffer(record.dek_wrapped, "dek_wrapped");
-
+// Validate nonce and tag lengths before decryption to prevent potential DoS or crypto errors
   assertNonce(dekWrapNonce, "dek_wrap_nonce");
   assertTag(dekWrapTag, "dek_wrap_tag");
 
@@ -120,14 +121,14 @@ export function decryptPayload(record: TxSecureRecord): unknown {
   } catch (error) {
     throw new Error("Failed to unwrap DEK");
   }
-
+// Decrypt the payload with the unwrapped DEK
   const payloadNonce = toBuffer(record.payload_nonce, "payload_nonce");
   const payloadTag = toBuffer(record.payload_tag, "payload_tag");
   const payloadCiphertext = toBuffer(record.payload_ct, "payload_ct");
 
   assertNonce(payloadNonce, "payload_nonce");
   assertTag(payloadTag, "payload_tag");
-
+// If decryption fails (e.g., due to tampering), we throw a generic error without leaking details to avoid giving attackers clues.
   try {
     const payloadDecipher = createDecipheriv(AES_ALG, dek, payloadNonce);
     payloadDecipher.setAuthTag(payloadTag);

@@ -1,6 +1,9 @@
 import type { TxSecureRecord } from "@mirfa/crypto";
 import { getDb } from "../lib/mongo.js";
 
+// Repository Interface:
+// Decouples the business logic (router/handlers) from the persistence layer.
+// Allows us to easily swap databases (e.g., InMemory for tests, Mongo for prod).
 export type TransactionRepository = {
   save(record: TxSecureRecord): Promise<void>;
   findById(id: string): Promise<TxSecureRecord | null>;
