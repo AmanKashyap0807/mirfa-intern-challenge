@@ -51,7 +51,7 @@ pnpm dev
 ```
 
 ## Loom Videos
-[Youtube Link]()
+[Youtube Link](https://youtu.be/B_iF9VZfk8o)
 
 
 ***Check docs/ for detailed documentation***
