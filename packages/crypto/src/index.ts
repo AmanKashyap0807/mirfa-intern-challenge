@@ -2,7 +2,7 @@ import { createCipheriv, createDecipheriv, randomBytes, randomUUID } from "crypt
 
 export type TxSecureRecord = {
   id: string;
-  partyId: string;
+  clientId: string;
   createdAt: string;
 
   payload_nonce: string;
@@ -58,7 +58,7 @@ function assertTag(buf: Buffer, field: string): void {
   }
 }
 
-export function encryptPayload(partyId: string, payload: unknown): TxSecureRecord {
+export function encryptPayload(clientId: string, payload: unknown): TxSecureRecord {
   const masterKey = requireMasterKey();
 
   const dek = randomBytes(DEK_LENGTH_BYTES);
@@ -79,7 +79,7 @@ export function encryptPayload(partyId: string, payload: unknown): TxSecureRecor
 
   return {
     id: randomUUID(),
-    partyId,
+    clientId,
     createdAt: new Date().toISOString(),
 
     payload_nonce: payloadNonce.toString("hex"),

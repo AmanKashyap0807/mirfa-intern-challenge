@@ -11,7 +11,7 @@ import {
 import { ensureMongoEnv } from "./lib/mongo.js";
 
 type ErrorResponse = { error: string };
-type EncryptBody = { partyId: string; payload: unknown };
+type EncryptBody = { clientId: string; payload: unknown };
 type DecryptResponse = { payload: unknown };
 
 class AppError extends Error {
@@ -26,17 +26,17 @@ function assertEncryptBody(body: unknown): EncryptBody {
     throw new AppError(400, "Body must be an object");
   }
 
-  const { partyId, payload } = body as Record<string, unknown>;
+  const { clientId, payload } = body as Record<string, unknown>;
 
-  if (typeof partyId !== "string" || partyId.trim().length === 0) {
-    throw new AppError(400, "partyId must be a non-empty string");
+  if (typeof clientId !== "string" || clientId.trim().length === 0) {
+    throw new AppError(400, "clientId must be a non-empty string");
   }
 
   if (payload === null || typeof payload !== "object" || Array.isArray(payload)) {
     throw new AppError(400, "payload must be an object");
   }
 
-  return { partyId: partyId.trim(), payload };
+  return { clientId: clientId.trim(), payload };
 }
 
 function handleError(reply: FastifyReply, error: unknown) {
@@ -91,10 +91,21 @@ export function createApp({ repository }: AppDeps = {}): {
     Reply: TxSecureRecord | ErrorResponse;
   }>("/tx/encrypt", async (request, reply) => {
     try {
-      const { partyId, payload } = assertEncryptBody(request.body);
-      const record = encryptPayload(partyId, payload);
+      const { clientId, payload } = assertEncryptBody(request.body);
+      const record = encryptPayload(clientId, payload);
       await repo.save(record);
       return reply.status(200).send(record);
+    } catch (error) {
+      return handleError(reply, error);
+    }
+  });
+
+  app.get<{
+    Reply: TxSecureRecord[] | ErrorResponse;
+  }>("/tx/history", async (request, reply) => {
+    try {
+      const records = await repo.findAll(); // Assuming findAll exists in repo
+      return reply.status(200).send(records);
     } catch (error) {
       return handleError(reply, error);
     }
@@ -136,11 +147,12 @@ export function createApp({ repository }: AppDeps = {}): {
   });
 
   app.get("/", async (request, reply) => {
-    return reply.status(200).send({ 
-      status: "ok", 
+    return reply.status(200).send({
+      status: "ok",
       message: "Mirfa Secure Transactions API",
       endpoints: [
         "POST /tx/encrypt",
+        "GET /tx/history",
         "GET /tx/:id",
         "POST /tx/:id/decrypt"
       ]

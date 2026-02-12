@@ -20,6 +20,10 @@ class InMemoryTransactionRepository implements TransactionRepository {
     return this.records.get(id) ?? null;
   }
 
+  async findAll(): Promise<TxSecureRecord[]> {
+    return Array.from(this.records.values()).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
   set(id: string, record: TxSecureRecord): void {
     this.records.set(id, record);
   }
@@ -40,14 +44,43 @@ describe("API integration", () => {
     const res = await app.inject({
       method: "POST",
       url: "/tx/encrypt",
-      payload: { partyId: "p1", payload: { foo: "bar" } },
+      payload: { clientId: "c1", payload: { foo: "bar" } },
     });
 
     expect(res.statusCode).toBe(200);
     const body = res.json() as any;
     expect(body.id).toBeTruthy();
+    expect(body.clientId).toBe("c1");
     expect(body.payload_nonce).toHaveLength(24);
     expect(body.payload_tag).toHaveLength(32);
+  });
+
+  it("GET /tx/history returns sorted records", async () => {
+    const repository = new InMemoryTransactionRepository();
+    const { app } = createApp({ repository });
+    await app.ready();
+
+    await app.inject({
+      method: "POST",
+      url: "/tx/encrypt",
+      payload: { clientId: "c1", payload: { msg: "1" } },
+    });
+
+    // slight delay to ensure different timestamps if needed, 
+    // but execution is slow enough usually. 
+    // Manual timestamp override would be better but let's trust sequential execution.
+    await app.inject({
+      method: "POST",
+      url: "/tx/encrypt",
+      payload: { clientId: "c2", payload: { msg: "2" } },
+    });
+
+    const res = await app.inject({ method: "GET", url: "/tx/history" });
+    expect(res.statusCode).toBe(200);
+    const history = res.json() as any[];
+    expect(history).toHaveLength(2);
+    expect(history[0].clientId).toBe("c2"); // Newest first
+    expect(history[1].clientId).toBe("c1");
   });
 
   it("GET /tx/:id returns stored record", async () => {
@@ -58,7 +91,7 @@ describe("API integration", () => {
     const created = await app.inject({
       method: "POST",
       url: "/tx/encrypt",
-      payload: { partyId: "p1", payload: { foo: "bar" } },
+      payload: { clientId: "c1", payload: { foo: "bar" } },
     });
     const record = created.json() as any;
 
@@ -75,7 +108,7 @@ describe("API integration", () => {
     const created = await app.inject({
       method: "POST",
       url: "/tx/encrypt",
-      payload: { partyId: "p1", payload: { foo: "bar" } },
+      payload: { clientId: "c1", payload: { foo: "bar" } },
     });
     const record = created.json() as any;
 
@@ -101,7 +134,7 @@ describe("API integration", () => {
     const created = await app.inject({
       method: "POST",
       url: "/tx/encrypt",
-      payload: { partyId: "p1", payload: { foo: "bar" } },
+      payload: { clientId: "c1", payload: { foo: "bar" } },
     });
     const record = created.json() as any;
 
@@ -119,7 +152,7 @@ describe("API integration", () => {
     const created = await app.inject({
       method: "POST",
       url: "/tx/encrypt",
-      payload: { partyId: "p1", payload: { foo: "bar" } },
+      payload: { clientId: "c1", payload: { foo: "bar" } },
     });
     const record = created.json() as any;
 

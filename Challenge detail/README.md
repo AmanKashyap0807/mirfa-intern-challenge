@@ -68,7 +68,7 @@ packages/crypto → shared encryption logic
 
 The app should allow a user to:
 
-1. Enter a JSON payload + partyId
+1. Enter a JSON payload + clientId
 2. Encrypt & store it
 3. Retrieve encrypted record
 4. Decrypt it back to original
@@ -107,7 +107,7 @@ Input:
 
 ```json
 {
-  "partyId": "party_123",
+  "clientId": "client_123",
   "payload": { "amount": 100, "currency": "AED" }
 }
 ```
@@ -129,7 +129,7 @@ SQLite/Postgres ✅ bonus
 ### 💻 Frontend (Next.js)
 Single page is enough:
 
-input: partyId
+input: clientId
 
 textarea: JSON payload
 
@@ -160,7 +160,7 @@ Binary values should be stored as hex strings.
 ### 📦 Data Model
 export type TxSecureRecord = {
   id: string
-  partyId: string
+  clientId: string
   createdAt: string
 
   payload_nonce: string
