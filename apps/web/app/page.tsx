@@ -36,7 +36,7 @@ export default function HomePage() {
 
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState<TxSecureRecord[]>([]);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Fetch history on mount
   useEffect(() => {
